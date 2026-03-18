@@ -17,25 +17,25 @@ namespace factor032_040_detail {
 struct RunningMomentState {
     std::size_t count;
     double mean;
-    double m2;
-    double m3;
+    double m2; //二阶中心矩累积
+    double m3; //三阶中心矩累积
 };
 
 struct Factor032_040State {
-    factor_detail::ExactTimePositiveSummary lock_summary;
-    factor_detail::ExactTimePositiveSummary predict_summary;
-    factor_detail::WindowPeakInfo peak;
+    factor_detail::ExactTimePositiveSummary lock_summary;  // 封板时刻的统计信息
+    factor_detail::ExactTimePositiveSummary predict_summary;  // 预测时刻的统计信息
+    factor_detail::WindowPeakInfo peak;  // 时间窗口内的最大值信息
 
-    bool        has_window_last;
-    bool        has_window_prev;
-    bool        has_bid_amount_moments;
+    bool has_window_last;  // 是否存在最后一条窗口数据
+    bool has_window_prev;  // 是否存在上一条窗口数据
+    bool has_bid_amount_moments;  // 是否计算了委托金额的统计量
 
-    std::size_t window_count;
-    double      last_bid_amount;
-    double      prev_bid_amount;
+    std::size_t window_count;  // 时间窗口内的截面数量
+    double last_bid_amount;  // 最后一条截面的委托金额
+    double prev_bid_amount;  // 上一条截面的委托金额
 
-    RunningMomentState bid_amount_moments;
-    std::vector<double> diff_returns;
+    RunningMomentState bid_amount_moments;  // 委托金额的统计量（均值、方差、偏度）
+    std::vector<double> diff_returns;  // 差分收益率序列
 };
 
 struct Factor032_040Workspace {
@@ -134,6 +134,56 @@ inline void update_exact_time_summary(
     ++summary.count;
 }
 
+// 逐条截面推送接口：每收到一条截面调用一次
+inline void on_cross_section_update(
+    Factor032_040State& state,
+    const FactorBasicInfo& basic_info,
+    const FactorCrossSectionInfo& cs) {
+    if (cs.time == basic_info.lock_time) {
+        update_exact_time_summary(state.lock_summary, cs.bid_amount);
+    }
+    if (cs.time == basic_info.predict_t) {
+        update_exact_time_summary(state.predict_summary, cs.bid_amount);
+    }
+
+    if (cs.time < basic_info.lock_time || cs.time > basic_info.predict_t) {
+        return;
+    }
+
+    ++state.window_count;
+    state.last_bid_amount = cs.bid_amount;
+    state.has_window_last = true;
+
+    //更新峰值数据
+    if (!state.peak.has_value || cs.bid_amount > state.peak.bid_amount) {
+        state.peak.has_value = true;
+        state.peak.time = cs.time;
+        state.peak.bid_amount = cs.bid_amount;
+    }
+
+    //更新累计委托金额
+    update_running_moments(state.bid_amount_moments, cs.bid_amount);
+    state.has_bid_amount_moments = true;
+
+    //初始化差分收益率
+    if (!state.has_window_prev) {
+        state.diff_returns.push_back(0.0);
+        state.prev_bid_amount = cs.bid_amount;
+        state.has_window_prev = true;
+        return;
+    }
+
+    //计算查分收益率
+    if (state.prev_bid_amount == 0.0) {
+        state.diff_returns.push_back(
+            cs.bid_amount == 0.0 ? 0.0 : std::numeric_limits<double>::infinity());
+    } else {
+        state.diff_returns.push_back(cs.bid_amount / state.prev_bid_amount - 1.0);
+    }
+    state.prev_bid_amount = cs.bid_amount;
+}
+
+// 批量构建：遍历全量 cross_section，逐条调用 on_cross_section_update
 inline void build_factor032_040_state(
     const FactorInput& input,
     Factor032_040State& state) {
@@ -142,53 +192,20 @@ inline void build_factor032_040_state(
 
     for (std::vector<FactorCrossSectionInfo>::const_iterator it = input.cross_section.begin();
          it != input.cross_section.end(); ++it) {
-        if (it->time == input.basic_info.lock_time) {
-            update_exact_time_summary(state.lock_summary, it->bid_amount);
-        }
-        if (it->time == input.basic_info.predict_t) {
-            update_exact_time_summary(state.predict_summary, it->bid_amount);
-        }
-
-        if (it->time < input.basic_info.lock_time || it->time > input.basic_info.predict_t) {
-            continue;
-        }
-
-        ++state.window_count;
-        state.last_bid_amount = it->bid_amount;
-        state.has_window_last = true;
-
-        if (!state.peak.has_value || it->bid_amount > state.peak.bid_amount) {
-            state.peak.has_value = true;
-            state.peak.time = it->time;
-            state.peak.bid_amount = it->bid_amount;
-        }
-
-        update_running_moments(state.bid_amount_moments, it->bid_amount);
-        state.has_bid_amount_moments = true;
-
-        if (!state.has_window_prev) {
-            state.diff_returns.push_back(0.0);
-            state.prev_bid_amount = it->bid_amount;
-            state.has_window_prev = true;
-            continue;
-        }
-
-        if (state.prev_bid_amount == 0.0) {
-            state.diff_returns.push_back(
-                it->bid_amount == 0.0 ? 0.0 : std::numeric_limits<double>::infinity());
-        } else {
-            state.diff_returns.push_back(it->bid_amount / state.prev_bid_amount - 1.0);
-        }
-        state.prev_bid_amount = it->bid_amount;
+        on_cross_section_update(state, input.basic_info, *it);
     }
 }
 
+
+//初始化中间参数计算对象
 inline Factor032_040State build_factor032_040_state(const FactorInput& input) {
     Factor032_040State state;
     build_factor032_040_state(input, state);
     return state;
 }
 
+
+//计算对数增长率
 inline double compute_alpha(const factor_detail::ExactTimePositiveSummary& summary) {
     if (!summary.has_value || summary.first_value <= 0.0 || summary.last_value <= 0.0) {
         return factor_detail::nan_value();
@@ -280,6 +297,8 @@ inline double get_factor040(const Factor032_040State& state) {
         factor_detail::nan_value();
 }
 
+
+//输出因子
 inline Factor032_040Result collect_factor032_040(
     const FactorInput& input,
     const Factor032_040State& state,
@@ -297,6 +316,7 @@ inline Factor032_040Result collect_factor032_040(
     return result;
 }
 
+//用于批量数据一次性构建并输出因子
 inline Factor032_040Result collect_factor032_040(const FactorInput& input) {
     Factor032_040State state;
     build_factor032_040_state(input, state);

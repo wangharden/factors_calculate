@@ -14,7 +14,7 @@
 |------|----------|----------|----------|----------|
 | 委托/成交事件流 | 001-031 | order + trade + cross_section | ✅ 已实现 | `docs/factor01_031_design.md` |
 | 截面时序统计 | 032-040 | cross_section | ✅ 已实现 | `docs/factor032_040_design.md` |
-| 订单/成交混合 | 041-050 | order + trade | ❌ 未实现 | `docs/factor041_050_design.md` |
+| 订单/成交混合 | 041-050 | order + trade | ✅ 已实现 | `docs/factor041_050_design.md` |
 | VWAP 比率统计 | 053-061 | trade | ✅ 已实现 | `docs/factor053_061_design.md` |
 
 注：factor051/052 不存在于 notebook 定义中。
@@ -134,12 +134,13 @@ g++ -std=c++14 -g main.cpp factor001.cpp -o factor_demo
 - [x] 时间工具、统计工具、截面扫描工具（`cross_section_utils.h`）
 - [x] factor001-031 流式状态机（state / stream / extract 三层）
 - [x] factor032-040 截面时序因子
+- [x] factor041-050 订单/成交混合因子（State/stream 复用 factor01_031，extract 在 `factor01_031_extract.h`）
 - [x] factor053-061 VWAP 比率流式统计
 - [x] 统一入口 `factor_collection.h`
 
 ### 待完成
 
-- [ ] factor041-050 订单/成交混合因子（设计稿已就绪：`docs/factor041_050_design.md`）
+- [x] factor041-050 订单/成交混合因子（复用 `factor01_031_extract.h`，与 001-031 共享 State）
 - [ ] 与行情系统的集成测试
 - [ ] 与 Python notebook 的数值对齐验证
 
