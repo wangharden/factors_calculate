@@ -18,6 +18,12 @@ typedef enum {
     FACTOR_ORDER_TYPE_WITHDRAW = 2, // 撤单
 } FACTOR_ORDER_TYPE;
 
+typedef enum {
+    FACTOR_FUNCTION_CODE_UNKNOWN = 0,
+    FACTOR_FUNCTION_CODE_BUY = 1,
+    FACTOR_FUNCTION_CODE_SELL = 2,
+} FACTOR_FUNCTION_CODE;
+
 typedef struct {
     int                 predict_t;
     int                 t;  //自己单子的交易所时间戳
@@ -68,6 +74,25 @@ typedef struct {
 } FactorCrossSectionInfo;
 
 typedef struct {
+    int                 time;
+    int64_t             price;
+    int                 volume;
+    int                 order_id;
+    int                 biz_index;
+    FACTOR_ORDER_TYPE   order_type;
+    FACTOR_FUNCTION_CODE function_code;
+} FactorOrderEvent;
+
+typedef struct {
+    int             time;
+    int64_t         price;
+    int             volume;
+    int             bid_order_id;
+    int             ask_order_id;
+    FACTOR_BSFLAG   bs_flag;
+} FactorTradeEvent;
+
+typedef struct {
     std::vector<int>        time;
     std::vector<double>     bid_amount;
 } CrossSectionSoA;
@@ -78,6 +103,8 @@ typedef struct {
     FactorTransInfo last_transition;
     FactorBasicInfo basic_info;
     std::vector<FactorCrossSectionInfo> cross_section;
+    std::vector<FactorOrderEvent> order_events;
+    std::vector<FactorTradeEvent> trade_events;
 
 } FactorInput;
 

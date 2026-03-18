@@ -238,6 +238,7 @@ struct FactorCrossSectionInfo {
 
 - 如果以性能优先，优先写“扫描版”函数，而不是先切片再统计
 - `factor036-040` 这类时序因子尽量避免生成中间窗口副本
+- `quantile / median` 的数值语义与 notebook 中的 pandas 默认行为对齐，采用线性插值
 
 ## 5. 建议的施工顺序
 
@@ -302,3 +303,63 @@ struct FactorCrossSectionInfo {
 - `factor051`、`factor052` 在当前草稿中未看到定义，需要后续补确认
 - 涉及 `order` / `trade` 全量事件序列的因子本轮先不做
 - 如果本项目本轮目标是“先把工程骨架搭起来”，那么下一步最合适的是把 `order` / `trade` 公共工具层补齐，而不是继续在单个因子里重复写筛选和统计逻辑
+
+## 8. 对接清单：依赖全量 `order / trade` 序列的因子
+
+### 8.1 依赖全量 `order`，但不依赖订单生命周期回溯
+
+- `factor006`
+- `factor007`
+- `factor008`
+- `factor010`
+- `factor013`
+- `factor014`
+- `factor015`
+- `factor016`
+- `factor021`
+- `factor022`
+- `factor041`
+
+### 8.2 依赖全量 `trade`，但不依赖订单生命周期回溯
+
+- `factor009`
+- `factor011`
+- `factor017`
+- `factor018`
+- `factor019`
+- `factor020`
+- `factor024`
+- `factor025`
+- `factor026`
+- `factor027`
+- `factor043`
+- `factor044`
+- `factor045`
+- `factor046`
+- `factor053`
+- `factor054`
+- `factor055`
+- `factor056`
+- `factor057`
+- `factor058`
+- `factor059`
+- `factor060`
+- `factor061`
+
+### 8.3 同时依赖全量 `order` 与 `trade`，但不依赖订单生命周期回溯
+
+- 当前草稿中无明确仅靠窗口过滤即可完成、且同时依赖两者的因子
+
+### 8.4 依赖订单生命周期回溯或订单级关联，后续再做
+
+- `factor004`
+- `factor012`
+- `factor023`
+- `factor028`
+- `factor029`
+- `factor030`
+- `factor031`
+- `factor047`
+- `factor048`
+- `factor049`
+- `factor050`
