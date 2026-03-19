@@ -17,8 +17,8 @@ namespace factor032_040_detail {
 struct RunningMomentState {
     std::size_t count;
     double mean;
-    double m2; //二阶中心矩累积
-    double m3; //三阶中心矩累积
+    double m2; //二阶中心积
+    double m3; //三阶中心积
 };
 
 struct Factor032_040State {

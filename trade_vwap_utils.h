@@ -14,21 +14,22 @@
 
 namespace factor_vwap_detail {
 
+
 struct VwapRatioStatsState {
-    double              cum_amount;
-    double              cum_volume;
+    double              cum_amount;   // 累计成交金额(单位：元)
+    double              cum_volume;   // 累计成交量(单位：股)
 
-    std::size_t         count;
+    std::size_t         count;        // 样本数量
 
-    double              mean;
-    double              m2;
-    double              m3;
-    double              m4;
+    double              mean;         // 样本的均值
+    double              m2;           // 样本的二阶中心矩
+    double              m3;           // 样本的三阶中心矩
+    double              m4;           // 样本的四阶中心矩
 
-    double              min_value;
-    double              max_value;
+    double              min_value;    // 样本中的最小值
+    double              max_value;    // 样本中的最大值
 
-    std::vector<double> samples;
+    std::vector<double> samples;      // 样本数据的集合（存储所有计算出的样本值）
 };
 
 struct VwapRatioFactorResult {
@@ -43,6 +44,8 @@ struct VwapRatioFactorResult {
     double factor061;
 };
 
+
+//初始化
 inline void reset_vwap_ratio_stats(VwapRatioStatsState& state) {
     state.cum_amount = 0.0;
     state.cum_volume = 0.0;
@@ -56,6 +59,8 @@ inline void reset_vwap_ratio_stats(VwapRatioStatsState& state) {
     state.samples.clear();
 }
 
+
+// 流式更新逻辑
 inline void update_moments(VwapRatioStatsState& state, const double sample) {
     const std::size_t previous_count = state.count;
     state.count += 1;
@@ -88,10 +93,12 @@ inline void update_moments(VwapRatioStatsState& state, const double sample) {
     }
 }
 
+
+//更新均值
 inline void update_vwap_ratio_stats(
     VwapRatioStatsState& state,
     const int time,
-    const int lock_time,
+    const int lock_time, //涨停时间
     const int64_t trade_price,
     const int trade_volume,
     const int64_t limit_up) {
@@ -113,6 +120,8 @@ inline void update_vwap_ratio_stats(
     update_moments(state, sample);
 }
 
+
+//
 inline void build_vwap_ratio_stats(
     const FactorInput& input,
     VwapRatioStatsState& state) {
